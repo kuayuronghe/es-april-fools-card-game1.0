@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>听音选图小游戏 (8题库·4选1·音图同步)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 30px 20px; color: #fff; overflow-x: hidden; 
+  }
+
+  #game-container {
+    width: 100%; max-width: 700px;
+    display: flex; flex-direction: column; align-items: center;
+    transition: transform 0.3s ease; transform-origin: top center;
+  }
+
+  .zoom-controls {
+    position: fixed; bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 100;
+    background: rgba(255,255,255,0.9); padding: 10px; border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,.2);
+  }
+  .zoom-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: #764ba2; color: #fff; font-size: 20px; font-weight: bold;
+    cursor: pointer; transition: background .2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .zoom-btn:hover { background: #667eea; }
+  .zoom-level { font-size: 10px; color: #764ba2; font-weight: bold; text-align: center; }
+
+  h1 { font-size: 28px; margin-bottom: 10px; text-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .score-board {
+    font-size: 18px; margin-bottom: 15px; background: rgba(255,255,255,.2);
+    padding: 8px 24px; border-radius: 20px;
+  }
+  .modules-nav {
+    display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;
+  }
+  .mod-btn {
+    background: rgba(255,255,255,.2); color: #fff; border: 2px solid transparent;
+    padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: bold;
+    cursor: pointer; transition: all .2s;
+  }
+  .mod-btn:hover { background: rgba(255,255,255,.3); }
+  .mod-btn.active { background: #fff; color: #764ba2; border-color: #fff; }
+
+  .audio-box {
+    background: rgba(255,255,255,.95); border-radius: 16px; padding: 20px 32px;
+    margin-bottom: 24px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.2);
+    max-width: 400px; width: 100%;
+  }
+  .audio-box p { color: #555; margin-bottom: 14px; font-size: 15px; }
+  .audio-controls { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .play-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+    padding: 14px 36px; border-radius: 30px; font-size: 18px; cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .play-btn:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(102,126,234,.5); }
+  .play-btn:active { transform: scale(.97); }
+  .timer {
+    font-size: 24px; font-weight: bold; color: #764ba2;
+    font-family: monospace; min-width: 80px; text-align: left;
+  }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+    max-width: 500px; width: 100%;
+  }
+  .card {
+    background: #fff; border-radius: 12px; padding: 15px; text-align: center;
+    cursor: pointer; transition: transform .2s, box-shadow .2s, border .2s;
+    border: 3px solid transparent; box-shadow: 0 4px 15px rgba(0,0,0,.1);
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,.2); }
+  .card.correct { border-color: #2ecc71; background: #eafaf1; }
+  .card.wrong { border-color: #e74c3c; background: #fdedec; }
+  .card img {
+    width: 100%; height: 120px; object-fit: contain; border-radius: 8px;
+    margin-bottom: 8px; background: #fff; 
+  }
+  .card span { font-size: 14px; color: #444; font-weight: 600; display: block; line-height: 1.2; }
+  .msg { margin-top: 20px; font-size: 20px; min-height: 30px; font-weight: bold; text-shadow: 0 2px 6px rgba(0,0,0,.3); }
+  .next-btn {
+    margin-top: 16px; background: #fff; color: #764ba2; border: none;
+    padding: 12px 32px; border-radius: 30px; font-size: 16px; font-weight: bold;
+    cursor: pointer; display: none; transition: transform .2s;
+  }
+  .next-btn:hover { transform: scale(1.05); }
+
+  @media (max-width: 500px) {
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .card img { height: 80px; } h1 { font-size: 22px; }
+    .timer { font-size: 20px; min-width: 70px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="zoom-controls">
+  <button class="zoom-btn" id="zoomIn" title="放大界面">+</button>
+  <div class="zoom-level" id="zoomLevel">100%</div>
+  <button class="zoom-btn" id="zoomOut" title="缩小界面">-</button>
+  <button class="zoom-btn" id="zoomReset" title="重置大小" style="font-size:14px;">↺</button>
+</div>
+
+<div id="game-container">
+  <h1>🎧 听音选图 (8题库·4选1)</h1>
+  <div class="score-board">得分：<span id="score">0</span> / <span id="total">0</span></div>
+  <div class="modules-nav" id="modulesNav"></div>
+
+  <div class="audio-box">
+    <p id="moduleTitle">👆 点击播放，选出匹配的图片！</p>
+    <div class="audio-controls">
+      <button class="play-btn" id="playBtn">▶ 播放音频</button>
+      <div class="timer" id="timer">0.00s</div>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="msg" id="msg"></div>
+  <button class="next-btn" id="nextBtn">下一题 ➜</button>
+</div>
+
+<script>
+// ========== 1. 核心配置区 ==========
+const IMAGES = [
+  { label: "冰鹰北斗", img: "image/bybd.jpg" },
+  { label: "伏见弓弦", img: "image/fjgx.jpg" },
+  { label: "姬宫桃李", img: "image/jgtl.jpg" },
+  { label: "明星昴流", img: "image/mxml.jpg" },
+  { label: "日日树涉", img: "image/rrss.jpg" },
+  { label: "天祥院英智", img: "image/txyyz.jpg" },
+  { label: "衣更真绪", img: "image/ygzx.jpg" },
+  { label: "游木真", img: "image/ymz.jpg" },
+];
+
+const GAME_MODULES = [
+  {
+    name: "模块1 (4音频)",
+    audios: [
+      ["audio/m1/bybd_1.mp3", "audio/m1/bybd_2.mp3", "audio/m1/bybd_3.mp3", "audio/m1/bybd_4.mp3"],
+      ["audio/m1/fjgx_1.mp3", "audio/m1/fjgx_2.mp3", "audio/m1/fjgx_3.mp3", "audio/m1/fjgx_4.mp3"],
+      ["audio/m1/jgtl_1.mp3", "audio/m1/jgtl_2.mp3", "audio/m1/jgtl_3.mp3", "audio/m1/jgtl_4.mp3"],
+      ["audio/m1/mxml_1.mp3", "audio/m1/mxml_2.mp3", "audio/m1/mxml_3.mp3", "audio/m1/mxml_4.mp3"],
+      ["audio/m1/rrss_1.mp3", "audio/m1/rrss_2.mp3", "audio/m1/rrss_3.mp3", "audio/m1/rrss_4.mp3"],
+      ["audio/m1/txyyz_1.mp3", "audio/m1/txyyz_2.mp3", "audio/m1/txyyz_3.mp3", "audio/m1/txyyz_4.mp3"],
+      ["audio/m1/ygzx_1.mp3", "audio/m1/ygzx_2.mp3", "audio/m1/ygzx_3.mp3", "audio/m1/ygzx_4.mp3"],
+      ["audio/m1/ymz_1.mp3", "audio/m1/ymz_2.mp3", "audio/m1/ymz_3.mp3", "audio/m1/ymz_4.mp3"],
+    ]
+  },
+  {
+    name: "模块2 (3音频)",
+    audios: [
+      ["audio/m2/bybd_1.mp3", "audio/m2/bybd_2.mp3", "audio/m2/bybd_3.mp3"],
+      ["audio/m2/fjgx_1.mp3", "audio/m2/fjgx_2.mp3", "audio/m2/fjgx_3.mp3"],
+      ["audio/m2/jgtl_1.mp3", "audio/m2/jgtl_2.mp3", "audio/m2/jgtl_3.mp3"],
+      ["audio/m2/mxml_1.mp3", "audio/m2/mxml_2.mp3", "audio/m2/mxml_3.mp3"],
+      ["audio/m2/rrss_1.mp3", "audio/m2/rrss_2.mp3", "audio/m2/rrss_3.mp3"],
+      ["audio/m2/txyyz_1.mp3", "audio/m2/txyyz_2.mp3", "audio/m2/txyyz_3.mp3"],
+      ["audio/m2/ygzx_1.mp3", "audio/m2/ygzx_2.mp3", "audio/m2/ygzx_3.mp3"],
+      ["audio/m2/ymz_1.mp3", "audio/m2/ymz_2.mp3", "audio/m2/ymz_3.mp3"],
+    ]
+  },
+  {
+    name: "模块3 (4音频)",
+    audios: [
+      ["audio/m3/bybd_1.mp3", "audio/m3/bybd_2.mp3", "audio/m3/bybd_3.mp3", "audio/m3/bybd_4.mp3"],
+      ["audio/m3/fjgx_1.mp3", "audio/m3/fjgx_2.mp3", "audio/m3/fjgx_3.mp3", "audio/m3/fjgx_4.mp3"],
+      ["audio/m3/jgtl_1.mp3", "audio/m3/jgtl_2.mp3", "audio/m3/jgtl_3.mp3", "audio/m3/jgtl_4.mp3"],
+      ["audio/m3/mxml_1.mp3", "audio/m3/mxml_2.mp3", "audio/m3/mxml_3.mp3", "audio/m3/mxml_4.mp3"],
+      ["audio/m3/rrss_1.mp3", "audio/m3/rrss_2.mp3", "audio/m3/rrss_3.mp3", "audio/m3/rrss_4.mp3"],
+      ["audio/m3/txyyz_1.mp3", "audio/m3/txyyz_2.mp3", "audio/m3/txyyz_3.mp3", "audio/m3/txyyz_4.mp3"],
+      ["audio/m3/ygzx_1.mp3", "audio/m3/ygzx_2.mp3", "audio/m3/ygzx_3.mp3", "audio/m3/ygzx_4.mp3"],
+      ["audio/m3/ymz_1.mp3", "audio/m3/ymz_2.mp3", "audio/m3/ymz_3.mp3", "audio/m3/ymz_4.mp3"],
+    ]
+  },
+  {
+    name: "模块4 (5音频)",
+    audios: [
+      ["audio/m4/bybd_1.mp3", "audio/m4/bybd_2.mp3", "audio/m4/bybd_3.mp3", "audio/m4/bybd_4.mp3", "audio/m4/bybd_5.mp3"],
+      ["audio/m4/fjgx_1.mp3", "audio/m4/fjgx_2.mp3", "audio/m4/fjgx_3.mp3", "audio/m4/fjgx_4.mp3", "audio/m4/fjgx_5.mp3"],
+      ["audio/m4/jgtl_1.mp3", "audio/m4/jgtl_2.mp3", "audio/m4/jgtl_3.mp3", "audio/m4/jgtl_4.mp3", "audio/m4/jgtl_5.mp3"],
+      ["audio/m4/mxml_1.mp3", "audio/m4/mxml_2.mp3", "audio/m4/mxml_3.mp3", "audio/m4/mxml_4.mp3", "audio/m4/mxml_5.mp3"],
+      ["audio/m4/rrss_1.mp3", "audio/m4/rrss_2.mp3", "audio/m4/rrss_3.mp3", "audio/m4/rrss_4.mp3", "audio/m4/rrss_5.mp3"],
+      ["audio/m4/txyyz_1.mp3", "audio/m4/txyyz_2.mp3", "audio/m4/txyyz_3.mp3", "audio/m4/txyyz_4.mp3", "audio/m4/txyyz_5.mp3"],
+      ["audio/m4/ygzx_1.mp3", "audio/m4/ygzx_2.mp3", "audio/m4/ygzx_3.mp3", "audio/m4/ygzx_4.mp3", "audio/m4/ygzx_5.mp3"],
+      ["audio/m4/ymz_1.mp3", "audio/m4/ymz_2.mp3", "audio/m4/ymz_3.mp3", "audio/m4/ymz_4.mp3", "audio/m4/ymz_5.mp3"],
+    ]
+  },
+];
+
+GAME_MODULES.forEach((mod, modIdx) => {
+  const count = [4, 3, 4, 5][modIdx];
+  for (let i = 0; i < 8; i++) {
+    const pool = [];
+    for (let j = 1; j <= count; j++) {
+      pool.push(`assets/audios/m${modIdx + 1}/img_${i + 1}_${j}.mp3`); // 用户自己补充
+    }
+    mod.audios.push(pool);
+  }
+});
+
+// ========== 2. 游戏逻辑与状态 ==========
+let currentModuleIndex = 0;
+let currentAnswer = null;
+let currentAnswerIndex = 0;
+let score = 0;
+let total = 0;
+let locked = false;
+
+let timerInterval = null;
+let startTime = 0;
+let elapsedTime = 0;
+let currentAudio = null;
+let audioPlaying = false;
+let lastPlayedAudioSrc = null; // 记录上一题的音频
+let currentAudioSrc = null;   // 记录当前题目的固定音频
+
+const grid = document.getElementById('grid');
+const msg = document.getElementById('msg');
+const nextBtn = document.getElementById('nextBtn');
+const scoreEl = document.getElementById('score');
+const totalEl = document.getElementById('total');
+const playBtn = document.getElementById('playBtn');
+const timerEl = document.getElementById('timer');
+const moduleTitle = document.getElementById('moduleTitle');
+const modulesNav = document.getElementById('modulesNav');
+
+GAME_MODULES.forEach((mod, index) => {
+  const btn = document.createElement('button');
+  btn.className = 'mod-btn' + (index === 0 ? ' active' : '');
+  btn.textContent = mod.name;
+  btn.onclick = () => switchModule(index);
+  modulesNav.appendChild(btn);
+});
+
+function switchModule(index) {
+  if (index === currentModuleIndex && grid.children.length > 0) return;
+  currentModuleIndex = index;
+  document.querySelectorAll('.mod-btn').forEach((b, i) => b.classList.toggle('active', i === index));
+  moduleTitle.textContent = `👆 ${GAME_MODULES[index].name} - 选出匹配的图片！`;
+  score = 0; total = 0;
+  scoreEl.textContent = 0; totalEl.textContent = 0;
+  newRound();
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function stopAudio() {
+  if (currentAudio) {
+    currentAudio.pause(); currentAudio.currentTime = 0; 
+    audioPlaying = false; playBtn.textContent = '▶ 播放音频';
+  }
+}
+
+// 生成新一轮题目
+function newRound() {
+  locked = false; msg.textContent = ''; nextBtn.style.display = 'none'; grid.innerHTML = '';
+  stopTimer(); stopAudio();
+  elapsedTime = 0; timerEl.textContent = '0.00s';
+
+  // 【修复核心】：先随机抽取4张图片
+  const displayItems = shuffle([...IMAGES]).slice(0, 4);
+  
+  // 随机选一个作为正确答案
+  const answerIdx = Math.floor(Math.random() * displayItems.length);
+  currentAnswer = displayItems[answerIdx];
+  
+  // 找到正确答案在 IMAGES 中的索引
+  currentAnswerIndex = IMAGES.findIndex(img => img.label === currentAnswer.label);
+
+  // 【修复核心】：拿到正确的索引后，再去抽取对应的音频
+  const audioPool = GAME_MODULES[currentModuleIndex].audios[currentAnswerIndex];
+  if (audioPool && audioPool.length > 0) {
+    do {
+      currentAudioSrc = audioPool[Math.floor(Math.random() * audioPool.length)];
+    } while (currentAudioSrc === lastPlayedAudioSrc && audioPool.length > 1);
+  }
+
+  // 渲染卡片
+  displayItems.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<img src="${item.img}" alt="${item.label}" loading="lazy"><span>${item.label}</span>`;
+    card.addEventListener('click', () => handleChoice(card, item));
+    grid.appendChild(card);
+  });
+}
+
+function handleChoice(card, item) {
+  if (locked) return;
+  locked = true; stopTimer(); stopAudio(); total++; totalEl.textContent = total;
+
+  const isCorrect = item.label === currentAnswer.label;
+  if (isCorrect) {
+    score++; scoreEl.textContent = score; card.classList.add('correct');
+    msg.innerHTML = `✅ 答对啦！太棒了！ <span style="font-size:16px; opacity:0.9;">(耗时 ${elapsedTime.toFixed(2)}s)</span>`;
+    msg.style.color = '#2ecc71';
+  } else {
+    card.classList.add('wrong');
+    [...grid.children].forEach(c => {
+      if (c.querySelector('span').textContent === currentAnswer.label) c.classList.add('correct');
+    });
+    msg.innerHTML = `❌ 答错了～正确答案是：${currentAnswer.label} <span style="font-size:16px; opacity:0.9;">(耗时 ${elapsedTime.toFixed(2)}s)</span>`;
+    msg.style.color = '#e74c3c';
+  }
+  nextBtn.style.display = 'inline-block';
+}
+
+// 播放/重听音频按钮逻辑
+playBtn.addEventListener('click', () => {
+  if (!currentAnswer || locked) return;
+  
+  if (audioPlaying) {
+    if (currentAudio) currentAudio.pause();
+    audioPlaying = false; playBtn.textContent = '▶ 继续播放';
+    return;
+  }
+  
+  currentAudio = new Audio(currentAudioSrc);
+  currentAudio.loop = false;
+  
+  currentAudio.onended = () => {
+    audioPlaying = false; playBtn.textContent = '🔄 点击重听';
+  };
+  
+  currentAudio.play().catch(e => console.log('音频播放失败，请检查路径:', currentAudioSrc));
+  
+  audioPlaying = true; playBtn.textContent = '⏸ 暂停音频';
+  lastPlayedAudioSrc = currentAudioSrc;
+
+  if (!timerInterval) {
+    startTime = Date.now() - (elapsedTime * 1000);
+    timerInterval = setInterval(() => {
+      elapsedTime = (Date.now() - startTime) / 1000;
+      timerEl.textContent = elapsedTime.toFixed(2) + 's';
+    }, 10);
+  }
+});
+
+nextBtn.addEventListener('click', () => newRound());
+
+// ========== 3. 界面缩放控制逻辑 ==========
+let currentScale = 1.0;
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomOutBtn = document.getElementById('zoomOut');
+const zoomResetBtn = document.getElementById('zoomReset');
+const zoomLevelEl = document.getElementById('zoomLevel');
+const gameContainer = document.getElementById('game-container');
+
+function updateZoom(newScale) {
+  currentScale = Math.max(0.5, Math.min(1.5, newScale));
+  gameContainer.style.transform = `scale(${currentScale})`;
+  zoomLevelEl.textContent = Math.round(currentScale * 100) + '%';
+}
+
+zoomInBtn.addEventListener('click', () => updateZoom(currentScale + 0.1));
+zoomOutBtn.addEventListener('click', () => updateZoom(currentScale - 0.1));
+zoomResetBtn.addEventListener('click', () => updateZoom(1.0));
+
+// 初始化游戏
+newRound();
+</script>
+</body>
+</html>
