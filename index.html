@@ -220,7 +220,8 @@ const IMAGES = [
 const DIFFICULTIES = [
   { name: "简单 (6选1)", options: 6 },
   { name: "中等 (8选1)", options: 8 },
-  { name: "困难 (10选1)", options: 10 }
+  { name: "困难 (10选1)", options: 10 },
+  { name: "地狱 (12选1)", options: 12 }
 ];
 
 // 【4个模块纯手动配置区】
@@ -612,6 +613,7 @@ function newRound() {
   let cols = 3;
   if (currentOptions === 8) cols = 4;
   if (currentOptions === 10) cols = 5;
+  if (currentOptions === 12) cols = 6;
   if (window.innerWidth <= 600) cols = 2; 
   grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
